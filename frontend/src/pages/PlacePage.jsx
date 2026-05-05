@@ -95,10 +95,20 @@ export default function PlacePage() {
   const has360 = has360Imagery(place)
   const isInRoute = routePlaces.some(p => p._id === place._id)
   const heroImage = !imageFailed && Array.isArray(place.images) ? place.images.find(Boolean) : ''
+  const handleBack = () => {
+    const returnMapState = location.state?.returnMapState
+
+    if (returnMapState) {
+      navigate('/map', { state: { restoreMap: returnMapState } })
+      return
+    }
+
+    navigate('/map')
+  }
 
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8 animate-fade-in">
-      <button onClick={() => navigate(-1)} className="flex items-center gap-1.5 text-stone-500 hover:text-stone-300 mb-6 transition-colors text-sm">
+      <button onClick={handleBack} className="flex items-center gap-1.5 text-stone-500 hover:text-stone-300 mb-6 transition-colors text-sm">
         <ArrowLeft size={16} /> {t('common.back')}
       </button>
 
