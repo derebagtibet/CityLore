@@ -13,9 +13,58 @@ const {
 
 const applyChanges = process.argv.includes('--apply');
 const limitArg = process.argv.find(arg => arg.startsWith('--limit='));
+const cityArg = process.argv.find(arg => arg.startsWith('--city='));
 const limit = limitArg ? Number(limitArg.split('=')[1]) : 0;
+const city = cityArg ? cityArg.slice('--city='.length).trim() : '';
+const REQUEST_DELAY_MS = 750;
 
 const formatScore = (place, imageUrl) => scoreCandidate({ imageUrl, place });
+const countBy = (map, key) => map.set(key, (map.get(key) || 0) + 1);
+const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+const isResolvedCandidate = (place, imageUrl) => {
+  if (!imageUrl) return false;
+  return shouldReplacePlaceImage(place, '', imageUrl);
+};
+
+const analyzePlace = async (place) => {
+  const currentImage = getFirstUsableImage(place);
+  const hasReliableImage = currentImage && isExistingImageReliable(place, currentImage);
+  if (hasReliableImage) {
+    return { status: 'reliable', currentImage };
+  }
+
+  clearImageCache();
+  const nextImage = await resolvePlaceImage(place, { ignoreExisting: true });
+  const shouldUpdate = currentImage
+    ? shouldReplacePlaceImage(place, currentImage, nextImage)
+    : isResolvedCandidate(place, nextImage);
+
+  if (!shouldUpdate) {
+    if (currentImage) {
+      return {
+        status: 'suspicious-clear',
+        currentImage,
+        nextImage,
+        oldScore: formatScore(place, currentImage),
+      };
+    }
+
+    return {
+      status: 'missing-unresolved',
+      currentImage,
+      nextImage,
+    };
+  }
+
+  return {
+    status: currentImage ? 'suspicious-resolved' : 'missing-resolved',
+    currentImage,
+    nextImage,
+    oldScore: currentImage ? formatScore(place, currentImage) : null,
+    newScore: formatScore(place, nextImage),
+  };
+};
 
 const main = async () => {
   if (!process.env.MONGO_URI) {
@@ -24,50 +73,71 @@ const main = async () => {
 
   await mongoose.connect(process.env.MONGO_URI);
 
-  const query = { images: { $exists: true, $ne: [] } };
+  const query = {};
+  if (city) query.city = { $regex: `^${city.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, $options: 'i' };
+
   const findQuery = Place.find(query).sort({ city: 1, name: 1 });
   if (Number.isFinite(limit) && limit > 0) findQuery.limit(limit);
 
   const places = await findQuery;
-  const changes = [];
-  const stats = new Map();
+  const stats = {
+    scanned: places.length,
+    reliable: 0,
+    missing: 0,
+    suspicious: 0,
+    resolved: 0,
+    unresolved: 0,
+    cleared: 0,
+    updated: 0,
+  };
+  const groupedChanges = new Map();
 
   for (const place of places) {
-    const currentImage = getFirstUsableImage(place);
-    if (!currentImage || isExistingImageReliable(place, currentImage)) continue;
+    const result = await analyzePlace(place);
+    await delay(REQUEST_DELAY_MS);
 
-    clearImageCache();
-    const nextImage = await resolvePlaceImage(place, { ignoreExisting: true });
-    if (!shouldReplacePlaceImage(place, currentImage, nextImage)) continue;
+    if (result.status === 'reliable') {
+      stats.reliable++;
+      continue;
+    }
 
-    const change = {
-      id: place._id.toString(),
-      name: place.name,
-      city: place.city,
-      category: place.category,
-      oldImage: currentImage,
-      newImage: nextImage,
-      oldScore: formatScore(place, currentImage),
-      newScore: formatScore(place, nextImage),
-    };
-    changes.push(change);
+    if (result.status.startsWith('missing')) stats.missing++;
+    if (result.status.startsWith('suspicious')) stats.suspicious++;
 
+    if (result.status.endsWith('unresolved')) {
+      stats.unresolved++;
+      continue;
+    }
+
+    const shouldClear = result.status === 'suspicious-clear';
+    if (!shouldClear) stats.resolved++;
+    else stats.cleared++;
+    const label = shouldClear ? 'CLEAR' : (result.status.startsWith('missing') ? 'FILL' : 'REPAIR');
     const key = `${place.city || 'Unknown'} / ${place.category || 'unknown'}`;
-    stats.set(key, (stats.get(key) || 0) + 1);
+    countBy(groupedChanges, key);
 
-    console.log(`[${applyChanges ? 'APPLY' : 'DRY'}] ${change.name} (${change.city})`);
-    console.log(`  old (${change.oldScore}): ${change.oldImage}`);
-    console.log(`  new (${change.newScore}): ${change.newImage}`);
+    console.log(`[${applyChanges ? 'APPLY' : 'DRY'}:${label}] ${place.name} (${place.city})`);
+    if (result.currentImage) console.log(`  old (${result.oldScore}): ${result.currentImage}`);
+    else console.log('  old: <missing>');
+    if (shouldClear) console.log('  new: <cleared>');
+    else console.log(`  new (${result.newScore}): ${result.nextImage}`);
 
     if (applyChanges) {
-      place.images = [nextImage];
+      place.images = shouldClear ? [] : [result.nextImage];
       await place.save();
+      stats.updated++;
     }
   }
 
   console.log('');
-  console.log(`${applyChanges ? 'Updated' : 'Would update'} ${changes.length} of ${places.length} places.`);
-  for (const [key, count] of [...stats.entries()].sort((a, b) => a[0].localeCompare(b[0], 'tr'))) {
+  console.log(`${applyChanges ? 'Updated' : 'Would update'} ${applyChanges ? stats.updated : stats.resolved + stats.cleared} of ${stats.scanned} places.`);
+  console.log(`  reliable: ${stats.reliable}`);
+  console.log(`  missing: ${stats.missing}`);
+  console.log(`  suspicious: ${stats.suspicious}`);
+  console.log(`  resolved: ${stats.resolved}`);
+  console.log(`  unresolved: ${stats.unresolved}`);
+  console.log(`  cleared: ${stats.cleared}`);
+  for (const [key, count] of [...groupedChanges.entries()].sort((a, b) => a[0].localeCompare(b[0], 'tr'))) {
     console.log(`  ${key}: ${count}`);
   }
 

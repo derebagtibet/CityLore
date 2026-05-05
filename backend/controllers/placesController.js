@@ -27,8 +27,15 @@ const attachResolvedImage = async (place) => {
 
   const currentImage = getFirstUsableImage(place);
   const imageUrl = await resolvePlaceImage(place, { ignoreExisting: true });
-  if (!imageUrl) return place;
-  if (!shouldReplacePlaceImage(place, currentImage, imageUrl)) return place;
+  if (!imageUrl || !shouldReplacePlaceImage(place, currentImage, imageUrl)) {
+    if (currentImage) {
+      place.images = [];
+      if (typeof place.save === 'function') {
+        await place.save();
+      }
+    }
+    return place;
+  }
 
   place.images = [imageUrl];
   if (typeof place.save === 'function') {
