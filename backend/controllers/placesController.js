@@ -1,7 +1,12 @@
 const Place = require('../models/Place');
 const City = require('../models/City');
 const User = require('../models/User');
-const { resolvePlaceImage, isUsablePlaceImage } = require('../utils/placeImages');
+const {
+  resolvePlaceImage,
+  isExistingImageReliable,
+  shouldReplacePlaceImage,
+  getFirstUsableImage,
+} = require('../utils/placeImages');
 
 const optionalNumber = (value, fallback) => {
   if (value === undefined || value === null || value === '') return fallback;
@@ -16,10 +21,14 @@ const numberFromQuery = (value) => {
 
 const attachResolvedImage = async (place) => {
   if (!place || !Array.isArray(place.images)) return place;
-  if (place.images.some(isUsablePlaceImage)) return place;
 
-  const imageUrl = await resolvePlaceImage(place);
+  const reliableImage = place.images.find(image => isExistingImageReliable(place, image));
+  if (reliableImage) return place;
+
+  const currentImage = getFirstUsableImage(place);
+  const imageUrl = await resolvePlaceImage(place, { ignoreExisting: true });
   if (!imageUrl) return place;
+  if (!shouldReplacePlaceImage(place, currentImage, imageUrl)) return place;
 
   place.images = [imageUrl];
   if (typeof place.save === 'function') {
