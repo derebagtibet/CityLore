@@ -18,6 +18,14 @@ export default function Navbar() {
     logout()
     navigate('/')
   }
+  const handleMapClick = () => {
+    if (location.pathname === '/map') {
+      navigate('/map', { state: { resetMap: true } })
+      return
+    }
+
+    navigate('/map')
+  }
   const isActive = (path) => location.pathname === path
   const nextLanguageLabel = language === 'tr' ? 'EN' : 'TR'
 
@@ -30,8 +38,9 @@ export default function Navbar() {
         </Link>
 
         <div className="absolute left-1/2 hidden -translate-x-1/2 md:block">
-          <Link
-            to="/map"
+          <button
+            type="button"
+            onClick={handleMapClick}
             className={`inline-flex min-w-[132px] items-center justify-center gap-2.5 rounded-xl border px-6 py-3 text-base font-bold tracking-wide transition ${
               isActive('/map')
                 ? 'border-gold bg-gold-deep/65 text-gold-bright shadow-[inset_0_0_16px_hsl(var(--gold-bright)_/_0.24),0_0_22px_hsl(var(--gold)_/_0.18)]'
@@ -40,7 +49,7 @@ export default function Navbar() {
           >
             <MapGlyph className="h-5 w-5" />
             {t('nav.map')}
-          </Link>
+          </button>
         </div>
 
         <div className="hidden items-center gap-3 md:flex">
@@ -97,9 +106,13 @@ export default function Navbar() {
 
       {menuOpen && (
         <div className="md:hidden border-t border-gold/15 bg-bg-black px-4 py-3">
-          <Link to="/map" onClick={() => setMenuOpen(false)} className="flex items-center justify-center gap-2 rounded-xl border border-gold/50 bg-gold-deep/45 px-4 py-3 text-base font-bold text-gold-bright shadow-[inset_0_0_14px_hsl(var(--gold-bright)_/_0.2)] hover:bg-gold/10">
+          <button
+            type="button"
+            onClick={() => { handleMapClick(); setMenuOpen(false) }}
+            className="flex w-full items-center justify-center gap-2 rounded-xl border border-gold/50 bg-gold-deep/45 px-4 py-3 text-base font-bold text-gold-bright shadow-[inset_0_0_14px_hsl(var(--gold-bright)_/_0.2)] hover:bg-gold/10"
+          >
             <MapGlyph className="h-5 w-5" /> {t('nav.map')}
-          </Link>
+          </button>
           {user && <Link to="/add-place" onClick={() => setMenuOpen(false)} className="flex items-center gap-2 rounded-lg px-3 py-2.5 text-gold-bright hover:bg-gold/10"><Plus size={16} /> {t('nav.addPlace')}</Link>}
           {user?.role === 'admin' && <Link to="/admin" onClick={() => setMenuOpen(false)} className="flex items-center gap-2 rounded-lg px-3 py-2.5 text-gold-bright hover:bg-gold/10"><Shield size={16} /> {t('common.admin')}</Link>}
           {user ? (

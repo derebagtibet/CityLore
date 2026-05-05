@@ -5,7 +5,7 @@ import { placesAPI, eventsAPI, citiesAPI, directionsAPI } from '../services/api'
 import { useSocket } from '../context/SocketContext'
 import { useAuth } from '../context/AuthContext'
 import { useRoute } from '../context/RouteContext'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
 import { Search, Filter, Zap, MapPin, Star, X, Plus, Clock, Navigation, Trash2, Car, Footprints, Cloud, Sun, CloudRain, CloudLightning, CloudSnow, Wind, Compass } from 'lucide-react'
 import EventForm from '../components/EventForm'
 import PanoramaModal from '../components/PanoramaModal'
@@ -73,18 +73,28 @@ function getMapBoundsPayload(map) {
 
 function MapBoundsTracker({ onViewportChange }) {
   const map = useMapEvents({
-    moveend: () => onViewportChange(getMapBoundsPayload(map), map.getZoom()),
-    zoomend: () => onViewportChange(getMapBoundsPayload(map), map.getZoom()),
+    moveend: () => onViewportChange(getMapBoundsPayload(map), map.getZoom(), map.getCenter()),
+    zoomend: () => onViewportChange(getMapBoundsPayload(map), map.getZoom(), map.getCenter()),
   })
 
   useEffect(() => {
-    onViewportChange(getMapBoundsPayload(map), map.getZoom())
+    onViewportChange(getMapBoundsPayload(map), map.getZoom(), map.getCenter())
   }, [map, onViewportChange])
 
   return null
 }
 
 const categoryOptions = ['all', 'historical', 'museum', 'mosque', 'castle', 'ruins', 'monument', 'cultural']
+const DEFAULT_MAP_VIEW = {
+  center: [39.1, 35.0],
+  zoom: 6,
+}
+
+const isValidCenter = (center) => (
+  Array.isArray(center) &&
+  center.length === 2 &&
+  center.every((value) => Number.isFinite(Number(value)))
+)
 
 const getWeatherIcon = (code) => {
   if (code === 0) return <Sun size={14} className="text-amber-400" />
@@ -296,6 +306,8 @@ const PREDEFINED_ROUTES = [
 
 export default function MapPage() {
   const { language, t, translateCity, translatePlace, translateEvent, translateEntity } = useLanguage()
+  const location = useLocation()
+  const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const isLiveTab = searchParams.get('tab') === 'live'
   const eventMarkerRefs = useRef({})
@@ -309,9 +321,10 @@ export default function MapPage() {
   const [searchTerm, setSearchTerm] = useState('')
   const [showEvents, setShowEvents] = useState(true)
   const [showPlaces, setShowPlaces] = useState(true)
-  const [mapCenter, setMapCenter] = useState([39.1, 35.0])
-  const [mapZoom, setMapZoom] = useState(6)
-  const [currentZoom, setCurrentZoom] = useState(6)
+  const [mapCenter, setMapCenter] = useState(DEFAULT_MAP_VIEW.center)
+  const [mapZoom, setMapZoom] = useState(DEFAULT_MAP_VIEW.zoom)
+  const [currentZoom, setCurrentZoom] = useState(DEFAULT_MAP_VIEW.zoom)
+  const [currentMapCenter, setCurrentMapCenter] = useState(DEFAULT_MAP_VIEW.center)
   const [showEventForm, setShowEventForm] = useState(false)
   const [panoramaPlace, setPanoramaPlace] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -364,8 +377,21 @@ export default function MapPage() {
       eventMarkerRefs.current[event.id]?.openPopup()
     }, 120)
   }
-  const handleViewportChange = useCallback((bounds, zoom) => {
+  const handleViewportChange = useCallback((bounds, zoom, center) => {
     setCurrentZoom(zoom)
+    if (center) {
+      const nextCenter = [center.lat, center.lng]
+      setCurrentMapCenter(current => {
+        if (
+          current &&
+          Math.abs(current[0] - nextCenter[0]) < 0.000001 &&
+          Math.abs(current[1] - nextCenter[1]) < 0.000001
+        ) {
+          return current
+        }
+        return nextCenter
+      })
+    }
     setViewportBounds(current => {
       if (
         current &&
@@ -380,6 +406,38 @@ export default function MapPage() {
     })
   }, [])
 
+  const resetMapView = useCallback(() => {
+    setSelectedCity(null)
+    setSelectedCategory('all')
+    setSearchTerm('')
+    setShowEvents(true)
+    setShowPlaces(true)
+    setShowEventForm(false)
+    setPanoramaPlace(null)
+    setShowPredefined(false)
+    setViewportBounds(null)
+    setMapCenter(DEFAULT_MAP_VIEW.center)
+    setCurrentMapCenter(DEFAULT_MAP_VIEW.center)
+    setMapZoom(DEFAULT_MAP_VIEW.zoom)
+    setCurrentZoom(DEFAULT_MAP_VIEW.zoom)
+  }, [])
+
+  const getReturnMapState = (place) => {
+    const params = searchParams.toString()
+
+    return {
+      center: isValidCenter(currentMapCenter) ? currentMapCenter : mapCenter,
+      zoom: currentZoom || mapZoom,
+      cityId: selectedCity?._id || null,
+      cityName: selectedCity?.name || place?.city || null,
+      selectedCategory,
+      searchTerm,
+      showPlaces,
+      showEvents,
+      search: params ? `?${params}` : '',
+    }
+  }
+
   useEffect(() => {
     if (isLiveTab) {
       setShowPlaces(false)
@@ -390,6 +448,44 @@ export default function MapPage() {
   useEffect(() => {
     citiesAPI.getAll().then(res => setCities(res.data))
   }, [])
+
+  useEffect(() => {
+    if (location.state?.resetMap) {
+      resetMapView()
+      navigate('/map', { replace: true, state: null })
+      return
+    }
+
+    const restoreMap = location.state?.restoreMap
+    if (!restoreMap) return
+
+    const hasCityFocus = Boolean(restoreMap.cityId || restoreMap.cityName)
+    const restoredCity = hasCityFocus
+      ? cities.find(city => city._id === restoreMap.cityId || city.name === restoreMap.cityName)
+      : null
+
+    if (hasCityFocus && !restoredCity && cities.length === 0) return
+
+    const restoredCenter = isValidCenter(restoreMap.center)
+      ? restoreMap.center.map(Number)
+      : (restoredCity ? [restoredCity.location.coordinates[1], restoredCity.location.coordinates[0]] : DEFAULT_MAP_VIEW.center)
+    const restoredZoom = Number.isFinite(Number(restoreMap.zoom)) ? Number(restoreMap.zoom) : DEFAULT_MAP_VIEW.zoom
+
+    setSelectedCity(restoredCity || null)
+    setSelectedCategory(restoreMap.selectedCategory || 'all')
+    setSearchTerm(restoreMap.searchTerm || '')
+    if (typeof restoreMap.showPlaces === 'boolean') setShowPlaces(restoreMap.showPlaces)
+    if (typeof restoreMap.showEvents === 'boolean') setShowEvents(restoreMap.showEvents)
+    setShowEventForm(false)
+    setPanoramaPlace(null)
+    setShowPredefined(false)
+    setMapCenter(restoredCenter)
+    setCurrentMapCenter(restoredCenter)
+    setMapZoom(restoredZoom)
+    setCurrentZoom(restoredZoom)
+
+    navigate(`/map${restoreMap.search || ''}`, { replace: true, state: null })
+  }, [cities, location.state, navigate, resetMapView])
 
   // Fetch Weather
   useEffect(() => {
@@ -513,9 +609,12 @@ export default function MapPage() {
   }, [selectedCity, selectedCategory, debouncedSearchTerm, debouncedViewportBounds, shouldRenderPlaceMarkers])
 
   const handleCitySelect = (city) => {
+    const nextCenter = [city.location.coordinates[1], city.location.coordinates[0]]
     setSelectedCity(city)
-    setMapCenter([city.location.coordinates[1], city.location.coordinates[0]])
+    setMapCenter(nextCenter)
+    setCurrentMapCenter(nextCenter)
     setMapZoom(13)
+    setCurrentZoom(13)
   }
 
   const handleEventCreated = (event) => {
@@ -608,7 +707,7 @@ export default function MapPage() {
           </div>
           <div className="flex flex-wrap gap-1.5 max-h-32 overflow-y-auto pr-1">
             <button
-              onClick={() => { setSelectedCity(null); setMapCenter([39.1, 35.0]); setMapZoom(6) }}
+              onClick={() => { setSelectedCity(null); setMapCenter(DEFAULT_MAP_VIEW.center); setCurrentMapCenter(DEFAULT_MAP_VIEW.center); setMapZoom(DEFAULT_MAP_VIEW.zoom); setCurrentZoom(DEFAULT_MAP_VIEW.zoom) }}
               className={`px-2.5 py-1 rounded-lg text-xs transition-colors ${!selectedCity ? 'bg-amber-500 text-stone-950 font-semibold shadow-sm' : 'bg-stone-100 dark:bg-stone-800 text-stone-500 dark:text-stone-400 hover:text-stone-900 dark:hover:text-stone-200'}`}
             >{t('common.allTurkey')}</button>
             {sortedCities.map(city => (
@@ -957,7 +1056,11 @@ export default function MapPage() {
                       </button>
                     )}
                   </div>
-                  <Link to={`/place/${place._id}`} className="block text-center text-stone-500 text-[10px] mt-2 hover:text-stone-300 transition-colors">
+                  <Link
+                    to={`/place/${place._id}`}
+                    state={{ returnMapState: getReturnMapState(place) }}
+                    className="block text-center text-stone-500 text-[10px] mt-2 hover:text-stone-300 transition-colors"
+                  >
                     {t('map.viewDetails')}
                   </Link>
                 </div>
