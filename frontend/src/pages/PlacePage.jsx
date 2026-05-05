@@ -9,6 +9,29 @@ import PanoramaModal from '../components/PanoramaModal'
 import { has360Imagery } from '../utils/place360'
 import { useLanguage } from '../i18n/LanguageContext'
 
+const PLACE_FALLBACK_IMAGES = {
+  'nysa antik kenti': 'https://commons.wikimedia.org/wiki/Special:FilePath/Nysa_on_the_Maeander,_Turkey_-_52535674903.jpg',
+  'tralleis antik kenti': 'https://commons.wikimedia.org/wiki/Special:FilePath/Tralleis_Ancient_City%2C_Aydin%2C_Turkey.jpg',
+  'didyma apollon tapınağı': 'https://commons.wikimedia.org/wiki/Special:FilePath/Didyma_Apollon_Temple.jpg',
+  'oymaağaç höyüğü (nerik)': 'https://upload.wikimedia.org/wikipedia/commons/6/63/Oymaa%C4%9Fac_H%C3%B6y%C3%BCk_01.jpg',
+  'paflagon kaya mezarları': 'https://upload.wikimedia.org/wikipedia/commons/5/5c/Boyabat_rock-cut_tomb%2C_built_in_the_7th_century_BC_by_the_Paphlagonians%2C_located_in_the_village_of_Salar_near_Boyabat%2C_Sinop_Province%2C_Turkey_-_52826228162.jpg',
+  'paflagon kaya mezarlari': 'https://upload.wikimedia.org/wikipedia/commons/5/5c/Boyabat_rock-cut_tomb%2C_built_in_the_7th_century_BC_by_the_Paphlagonians%2C_located_in_the_village_of_Salar_near_Boyabat%2C_Sinop_Province%2C_Turkey_-_52826228162.jpg',
+  'asar kale': 'https://upload.wikimedia.org/wikipedia/commons/1/1a/Sinop-ruine4.JPG',
+  'paşa tabyası': 'https://upload.wikimedia.org/wikipedia/commons/2/2a/Sinop_Eastern_Bastion_9152.jpg',
+  'pasa tabyasi': 'https://upload.wikimedia.org/wikipedia/commons/2/2a/Sinop_Eastern_Bastion_9152.jpg',
+  'ardahan kalesi': 'https://upload.wikimedia.org/wikipedia/commons/a/a9/Ardahan_kalesi_2011.jpg',
+  'kinzi kalesi': 'https://upload.wikimedia.org/wikipedia/commons/a/a9/Ardahan_kalesi_2011.jpg',
+  'şeytan kalesi': 'https://upload.wikimedia.org/wikipedia/commons/8/8a/Ardahan_%C5%9Feytan_kale.jpg',
+  'seytan kalesi': 'https://upload.wikimedia.org/wikipedia/commons/8/8a/Ardahan_%C5%9Feytan_kale.jpg',
+  'harmandöven kervansarayı': 'https://upload.wikimedia.org/wikipedia/commons/5/5b/I%C4%9Fd%C4%B1r_han_k%C3%B6y%C3%BC_%28kervansaray%29_-_panoramio.jpg',
+  'harmandoven kervansarayi': 'https://upload.wikimedia.org/wikipedia/commons/5/5b/I%C4%9Fd%C4%B1r_han_k%C3%B6y%C3%BC_%28kervansaray%29_-_panoramio.jpg',
+  'karakale harabesi': 'https://upload.wikimedia.org/wikipedia/commons/f/ff/%C5%9Eeytan_Kale_-_Satan%27s_Castle.jpg',
+  'iğdır soykırım anıt-müzesi': 'https://upload.wikimedia.org/wikipedia/commons/5/56/IgdirGenocideMuseum.jpg',
+  'igdir soykirim anit-muzesi': 'https://upload.wikimedia.org/wikipedia/commons/5/56/IgdirGenocideMuseum.jpg',
+}
+
+const normalizePlaceName = (value = '') => value.toLocaleLowerCase('tr-TR').trim()
+
 export default function PlacePage() {
   const { id } = useParams()
   const { user } = useAuth()
@@ -94,7 +117,9 @@ export default function PlacePage() {
   const displayPlace = translatePlace(place)
   const has360 = has360Imagery(place)
   const isInRoute = routePlaces.some(p => p._id === place._id)
-  const heroImage = !imageFailed && Array.isArray(place.images) ? place.images.find(Boolean) : ''
+  const dbImage = Array.isArray(place.images) ? place.images.find(Boolean) : ''
+  const fallbackImage = PLACE_FALLBACK_IMAGES[normalizePlaceName(place.name)]
+  const heroImage = !imageFailed ? (dbImage || fallbackImage || '') : ''
   const handleBack = () => {
     const returnMapState = location.state?.returnMapState
 
