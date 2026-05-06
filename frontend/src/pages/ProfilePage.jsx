@@ -9,6 +9,8 @@ import explorerGuide from '../assets/animations/explorer-guide.json'
 import { useLanguage } from '../i18n/LanguageContext'
 import DiscoveryPuzzle, { DISCOVERIES_PER_LEVEL, getDiscoveryLevelTitleKey, getDiscoveryProgress } from '../components/DiscoveryPuzzle'
 
+const PROFILE_PLACE_LIST_LIMIT = 1000
+
 export default function ProfilePage() {
   const { user, logout } = useAuth()
   const { t, translatePlace } = useLanguage()
@@ -17,17 +19,20 @@ export default function ProfilePage() {
   const [editing, setEditing] = useState(false)
   const [form, setForm] = useState({ username: '', bio: '' })
   const [myPlaces, setMyPlaces] = useState([])
+  const [myPlacesTotal, setMyPlacesTotal] = useState(0)
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
     if (!user) { navigate('/login'); return }
     Promise.all([
       authAPI.getMe(),
-      placesAPI.getAll({ mine: true, limit: 100 }),
+      placesAPI.getAll({ mine: true, limit: PROFILE_PLACE_LIST_LIMIT }),
     ]).then(([profileRes, placesRes]) => {
+      const fetchedMyPlaces = placesRes.data.places || []
       setProfile(profileRes.data)
       setForm({ username: profileRes.data.username, bio: profileRes.data.bio || '' })
-      setMyPlaces(placesRes.data.places || [])
+      setMyPlaces(fetchedMyPlaces)
+      setMyPlacesTotal(placesRes.data.total ?? fetchedMyPlaces.length)
     })
   }, [user])
 
@@ -51,7 +56,8 @@ export default function ProfilePage() {
 
   const savedPlaces = profile.savedPlaces || []
   const savedCount = savedPlaces.length
-  const myPlacesCount = myPlaces.length
+  const isAdmin = profile.role === 'admin'
+  const myPlacesCount = myPlacesTotal
   const {
     completedLevels,
     currentLevel,
@@ -75,14 +81,18 @@ export default function ProfilePage() {
     { label: t('profile.statsSaved'), value: savedCount, hint: t('profile.statsSavedHint'), icon: Bookmark },
     { label: t('profile.statsCities'), value: 81, hint: t('profile.statsCitiesHint'), icon: MapPin },
     { label: t('profile.statsRoutes'), value: savedCount, hint: t('profile.statsRoutesHint'), icon: Route },
-    { label: t('profile.statsAdded'), value: myPlacesCount, hint: t('profile.statsAddedHint'), icon: Plus },
   ]
+  if (isAdmin) {
+    statCards.push({ label: t('profile.statsAdded'), value: myPlacesCount, hint: t('profile.statsAddedHint'), icon: Plus })
+  }
   const actionCards = [
     { label: t('profile.openMap'), text: t('profile.openMapText'), to: '/map', icon: Compass },
     { label: t('profile.liveEvents'), text: t('profile.liveEventsText'), to: '/map', icon: Zap },
-    { label: t('profile.addPlace'), text: t('profile.addPlaceText'), to: '/add-place', icon: Plus },
     { label: t('profile.createRoute'), text: t('profile.createRouteText'), to: '/map', icon: Route },
   ]
+  if (isAdmin) {
+    actionCards.splice(2, 0, { label: t('profile.addPlace'), text: t('profile.addPlaceText'), to: '/add-place', icon: Plus })
+  }
   return (
     <div className="relative min-h-[calc(100vh-80px)] overflow-hidden px-4 py-10 sm:px-6 lg:px-8">
       <div className="pointer-events-none absolute inset-0 opacity-[0.08] [background-image:linear-gradient(hsl(var(--gold-line)/0.45)_1px,transparent_1px),linear-gradient(90deg,hsl(var(--gold-line)/0.35)_1px,transparent_1px)] [background-size:44px_44px]" />
@@ -324,6 +334,7 @@ export default function ProfilePage() {
               ))}
             </section>
 
+            {isAdmin && (
             <section className="profile-fade-up rounded-lg border border-gold/25 bg-panel/85 p-5 shadow-card-lux">
               <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
                 <div>
@@ -331,10 +342,12 @@ export default function ProfilePage() {
                   <h3 className="font-display text-2xl font-semibold text-stone-100">{t('profile.myAddedPlaces')}</h3>
                   <p className="mt-2 text-sm leading-6 text-stone-500">{t('profile.myAddedText')}</p>
                 </div>
-                <Link to="/add-place" className="btn-secondary inline-flex items-center gap-2 text-sm">
-                  <Plus size={14} />
-                  {t('profile.addPlace')}
-                </Link>
+                {isAdmin && (
+                  <Link to="/add-place" className="btn-secondary inline-flex items-center gap-2 text-sm">
+                    <Plus size={14} />
+                    {t('profile.addPlace')}
+                  </Link>
+                )}
               </div>
 
               {myPlaces.length === 0 ? (
@@ -371,6 +384,7 @@ export default function ProfilePage() {
                 </div>
               )}
             </section>
+            )}
 
             {editing && (
               <form onSubmit={handleUpdate} className="profile-fade-up rounded-lg border border-gold/25 bg-panel/85 p-5 shadow-card-lux space-y-4">

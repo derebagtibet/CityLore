@@ -13,7 +13,7 @@ export default function AddPlacePage() {
   const { t, language } = useLanguage()
   const navigate = useNavigate()
   const [form, setForm] = useState({
-    name: '', description: '', category: 'historical', city: '',
+    name: '', description: '', category: 'cultural', city: '',
     lat: '', lng: '', address: '', period: '', entryFee: 0,
     openingHours: '', website: '', images: '',
     panoramaUrl: '', panoramaxImageId: '', streetViewUrl: '',
@@ -22,14 +22,20 @@ export default function AddPlacePage() {
   const [loading, setLoading] = useState(false)
 
   if (!user) { navigate('/login'); return null }
+  if (user.role !== 'admin') { navigate('/map'); return null }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    if (!form.lat || !form.lng) { toast.error(t('toast.coordinatesRequired')); return }
+    const lat = Number(form.lat)
+    const lng = Number(form.lng)
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) { toast.error(t('toast.coordinatesRequired')); return }
+    if (lat < -90 || lat > 90 || lng < -180 || lng > 180) { toast.error(t('toast.coordinatesRequired')); return }
     setLoading(true)
     try {
       const payload = {
         ...form,
+        lat,
+        lng,
         images: form.images ? form.images.split('\n').map(url => url.trim()).filter(Boolean) : [],
         panoramaUrl: form.panoramaUrl.trim(),
         panoramaxImageId: form.panoramaxImageId.trim(),
@@ -44,7 +50,19 @@ export default function AddPlacePage() {
       }
       const { data } = await placesAPI.create(payload)
       toast.success(t('addPlace.added'))
-      navigate(`/place/${data._id}`)
+      navigate('/map', {
+        state: {
+          restoreMap: {
+            center: [lat, lng],
+            zoom: 15,
+            cityName: form.city,
+            selectedCategory: payload.category || 'cultural',
+            searchTerm: form.name,
+            showPlaces: true,
+            showEvents: false,
+          },
+        },
+      })
     } catch (err) {
       toast.error(err.response?.data?.message || t('toast.error'))
     } finally {

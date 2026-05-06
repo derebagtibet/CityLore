@@ -6,24 +6,32 @@ import { Trash2, Shield, MapPin, Zap } from 'lucide-react'
 import toast from 'react-hot-toast'
 import { useLanguage } from '../i18n/LanguageContext'
 
+const ADMIN_PLACE_LIST_LIMIT = 1000
+
 export default function AdminPage() {
   const { user } = useAuth()
   const { t, translatePlace, translateEvent } = useLanguage()
   const navigate = useNavigate()
   const [places, setPlaces] = useState([])
+  const [totalPlaces, setTotalPlaces] = useState(0)
   const [events, setEvents] = useState([])
   const [tab, setTab] = useState('places')
 
   useEffect(() => {
     if (!user) { navigate('/login'); return }
     if (user.role !== 'admin') { navigate('/'); return }
-    placesAPI.getAll({ limit: 100 }).then(res => setPlaces(res.data.places))
+    placesAPI.getAll({ limit: ADMIN_PLACE_LIST_LIMIT }).then(res => {
+      const fetchedPlaces = res.data.places || []
+      setPlaces(fetchedPlaces)
+      setTotalPlaces(res.data.total ?? fetchedPlaces.length)
+    })
     eventsAPI.getAll({}).then(res => setEvents(res.data))
   }, [user])
 
   const deletePlace = async (id) => {
     await placesAPI.delete(id)
     setPlaces(prev => prev.filter(p => p._id !== id))
+    setTotalPlaces(prev => Math.max(prev - 1, 0))
     toast.success(t('admin.placeDeleted'))
   }
 
@@ -47,7 +55,7 @@ export default function AdminPage() {
 
       <div className="grid grid-cols-3 gap-4 mb-8">
         {[
-          { label: t('admin.totalPlaces'), value: places.length, icon: MapPin, color: 'amber' },
+          { label: t('admin.totalPlaces'), value: totalPlaces, icon: MapPin, color: 'amber' },
           { label: t('admin.liveEvents'), value: events.length, icon: Zap, color: 'emerald' },
           { label: t('admin.activeUsers'), value: '—', icon: Shield, color: 'blue' },
         ].map(({ label, value, icon: Icon, color }) => (

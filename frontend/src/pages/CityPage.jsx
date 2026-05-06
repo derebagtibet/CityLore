@@ -4,11 +4,13 @@ import { citiesAPI, placesAPI } from '../services/api'
 import { MapPin, Landmark, Star, ArrowRight, Image as ImageIcon } from 'lucide-react'
 import { has360Imagery } from '../utils/place360'
 import { useLanguage } from '../i18n/LanguageContext'
+import { useAuth } from '../context/AuthContext'
 
 const getPlaceImage = (place) => Array.isArray(place.images) ? place.images.find(Boolean) : ''
 
 export default function CityPage() {
   const { t, translateCity, translatePlace } = useLanguage()
+  const { user } = useAuth()
   const { id } = useParams()
   const [city, setCity] = useState(null)
   const [places, setPlaces] = useState([])
@@ -87,7 +89,9 @@ export default function CityPage() {
         <div className="text-center py-16 text-stone-500">
           <Landmark size={40} className="mx-auto mb-3 opacity-30" />
           <p>{t('city.empty')}</p>
-          <Link to="/add-place" className="text-amber-400 hover:underline mt-2 inline-block">{t('city.addFirst')}</Link>
+          {user?.role === 'admin' && (
+            <Link to="/add-place" className="text-amber-400 hover:underline mt-2 inline-block">{t('city.addFirst')}</Link>
+          )}
         </div>
       )}
     </div>

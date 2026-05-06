@@ -2,7 +2,8 @@ const City = require('../models/City');
 
 const getCities = async (req, res) => {
   try {
-    const cities = await City.find().sort({ placeCount: -1 });
+    // Haritada boş/yanlış şehir balonlarını (0 mekan) göstermeyelim.
+    const cities = await City.find({ placeCount: { $gt: 0 } }).sort({ placeCount: -1 });
     res.json(cities);
   } catch (err) {
     res.status(500).json({ message: err.message });
