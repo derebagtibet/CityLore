@@ -8,29 +8,91 @@ import toast from 'react-hot-toast'
 import PanoramaModal from '../components/PanoramaModal'
 import { has360Imagery } from '../utils/place360'
 import { useLanguage } from '../i18n/LanguageContext'
+import genericPlaceImage from '../assets/historic-landmarks.png'
 
 const PLACE_FALLBACK_IMAGES = {
   'nysa antik kenti': 'https://commons.wikimedia.org/wiki/Special:FilePath/Nysa_on_the_Maeander,_Turkey_-_52535674903.jpg',
-  'tralleis antik kenti': 'https://commons.wikimedia.org/wiki/Special:FilePath/Tralleis_Ancient_City%2C_Aydin%2C_Turkey.jpg',
+  'tralleis antik kenti': 'https://trthaberstatic.cdn.wp.trt.com.tr/resimler/2376000/tralleis-antik-kenti-aa-2377127.jpg',
   'didyma apollon tapınağı': 'https://commons.wikimedia.org/wiki/Special:FilePath/Didyma_Apollon_Temple.jpg',
   'oymaağaç höyüğü (nerik)': 'https://upload.wikimedia.org/wikipedia/commons/6/63/Oymaa%C4%9Fac_H%C3%B6y%C3%BCk_01.jpg',
   'paflagon kaya mezarları': 'https://upload.wikimedia.org/wikipedia/commons/5/5c/Boyabat_rock-cut_tomb%2C_built_in_the_7th_century_BC_by_the_Paphlagonians%2C_located_in_the_village_of_Salar_near_Boyabat%2C_Sinop_Province%2C_Turkey_-_52826228162.jpg',
   'paflagon kaya mezarlari': 'https://upload.wikimedia.org/wikipedia/commons/5/5c/Boyabat_rock-cut_tomb%2C_built_in_the_7th_century_BC_by_the_Paphlagonians%2C_located_in_the_village_of_Salar_near_Boyabat%2C_Sinop_Province%2C_Turkey_-_52826228162.jpg',
-  'asar kale': 'https://upload.wikimedia.org/wikipedia/commons/1/1a/Sinop-ruine4.JPG',
   'paşa tabyası': 'https://upload.wikimedia.org/wikipedia/commons/2/2a/Sinop_Eastern_Bastion_9152.jpg',
   'pasa tabyasi': 'https://upload.wikimedia.org/wikipedia/commons/2/2a/Sinop_Eastern_Bastion_9152.jpg',
   'ardahan kalesi': 'https://upload.wikimedia.org/wikipedia/commons/a/a9/Ardahan_kalesi_2011.jpg',
-  'kinzi kalesi': 'https://upload.wikimedia.org/wikipedia/commons/a/a9/Ardahan_kalesi_2011.jpg',
   'şeytan kalesi': 'https://upload.wikimedia.org/wikipedia/commons/8/8a/Ardahan_%C5%9Feytan_kale.jpg',
   'seytan kalesi': 'https://upload.wikimedia.org/wikipedia/commons/8/8a/Ardahan_%C5%9Feytan_kale.jpg',
   'harmandöven kervansarayı': 'https://upload.wikimedia.org/wikipedia/commons/5/5b/I%C4%9Fd%C4%B1r_han_k%C3%B6y%C3%BC_%28kervansaray%29_-_panoramio.jpg',
   'harmandoven kervansarayi': 'https://upload.wikimedia.org/wikipedia/commons/5/5b/I%C4%9Fd%C4%B1r_han_k%C3%B6y%C3%BC_%28kervansaray%29_-_panoramio.jpg',
-  'karakale harabesi': 'https://upload.wikimedia.org/wikipedia/commons/f/ff/%C5%9Eeytan_Kale_-_Satan%27s_Castle.jpg',
+  'hierapolis antik kenti': 'https://trthaberstatic.cdn.wp.trt.com.tr/resimler/1622000/cehennem-kapisi-aa-1623233.jpg',
   'iğdır soykırım anıt-müzesi': 'https://upload.wikimedia.org/wikipedia/commons/5/56/IgdirGenocideMuseum.jpg',
   'igdir soykirim anit-muzesi': 'https://upload.wikimedia.org/wikipedia/commons/5/56/IgdirGenocideMuseum.jpg',
+  'afrodisias antik kenti': 'https://image.cnnturk.com/i/cnnturk/75/1200x675/60befce6d265a226442ca6b8.jpg',
+  'anadolu medeniyetleri müzesi': 'https://commons.wikimedia.org/wiki/Special:FilePath/Museum%20of%20Anatolian%20Civilizations.jpg',
+  'ankara kalesi': 'https://upload.wikimedia.org/wikipedia/commons/thumb/8/86/Ankara_Castle.jpg/1280px-Ankara_Castle.jpg',
+  'amisos tepesi ve kral mezarları': 'https://commons.wikimedia.org/wiki/Special:FilePath/Amisos%20Tepesi%20kuzey%20t%C3%BCm%C3%BCl%C3%BCs%C3%BC%20giri%C5%9Fi.JPG',
+  'arap baba türbesi': 'https://static.daktilo.com/sites/1575/uploads/2025/01/13/arap-baba.jpg',
+  'arsameia antik kenti': 'https://upload.wikimedia.org/wikipedia/commons/thumb/4/45/Hierothesion_%284955126957%29.jpg/960px-Hierothesion_%284955126957%29.jpg',
+  'asar kale': 'https://www.omu.edu.tr/sites/default/files/files/bafra_ilcesindeki_asar_kalede_kazi_calismalari_baslatilacak/aa-20240228-33834743-33834742-bafra_ilcesindeki_asar_kalede_kazi_calismalari_baslatilacak.jpg',
+  'atatürk ve etnografya müzesi': 'https://image.hurimg.com/i/hurriyet/75/0x0/5824362718c7732a3494ea5f.jpg',
+  'bandırma gemi-müzesi': 'https://image.gazetevatan.com/i/gazetevatan/75/1200x0/68989f71b75a244b3289f6c0.jpg',
+  'bekdemir köyü ahşap cami': 'https://cdn.istiklal.com.tr/gallery/2021/05/925572/a-4c5l.jpg',
+  'cendere köprüsü': 'https://nomatto.com/asset/files/adiyaman/cendere_koprusu.jpg',
+  'çakallı han': 'https://www.samsunetkinlik.com/wp-content/uploads/2026/01/Cakalli-Tashan2-1024x768.webp',
+  'elazığ arkeoloji ve etnografya müzesi': 'https://cdn.karar.com/other/2024/11/02/elazig-arkeoloji-ve-etnografya-muzesi.jpg',
+  'ilkadım anıtı': 'https://www.samsunharitasi.com/Harita/Large/www.samsunharitasi.com_98_ilkadim-aniti_WD2U22HSEMHI.jpg',
+  'kilis ulu camii': 'https://reshontheway.com/wp-content/uploads/2022/06/Kilis-Ulu-Camii-1536x863.jpeg',
+  'kiğı kalesi': 'https://bingol.ktb.gov.tr/Resim/360835,kigi-ilcesi-tarihi-kilise-bazilikajpg.png?0',
+  'kurtuluş yolu başlangıç noktası': 'https://samsun.ktb.gov.tr/Resim/272261,getfotoaspxjpg.png?0',
+  'kütahya kalesi': 'https://cdn.yerelrehber.com/uploads/2023/63f493d3033a2_1676973011.jpg',
+  'magnesia antik kenti': 'https://image.milimaj.com/i/milliyet/75/869x477/5f6de4da55428109ec1030a4.jpg',
+  'malatya müzesi': 'https://upload.wikimedia.org/wikipedia/commons/thumb/9/92/MalatyaMuseum.jpg/1280px-MalatyaMuseum.jpg',
+  'manisa müzesi': 'https://habereksprescomtr.teimg.com/crop/1280x720/haberekspres-com-tr/uploads/2024/10/manisa-arkeoloji-muzesi-3.jpg',
+  'odunpazari evleri': 'https://odunpazari.bel.tr/upload/galleries/notchange/7881209b-4c60-4ffe-80d9-49d3a6c07d47.jpg',
+  'pasabag vadisi': 'https://dynamic-media-cdn.tripadvisor.com/media/photo-o/1c/89/aa/5c/pasabag.jpg?w=1200',
+  'philadelphia antik kenti': 'https://blogger.googleusercontent.com/img/b/R29vZ2xl/AVvXsEjgLX7_5qlmBf5dW9b0JXehyPBimDc6SJMf1jxYHx5RzX5jhLAZsphWfJEFrcTPohS6HttYHlcUNLQzVSveY0jyDBjUVJU_blFjWfV10xNvtwj5eljilock-PHZFbbOmX1i0T9L7RInnCWNCgld4X5n0rwD8l4R1PcM3er8PI_6Bj4jDfE0Tmtaw7_bjaA/s1200/philadelphia-turkey.jpg',
+  'ravanda kalesi': 'https://www.kulturportali.gov.tr/contents/images/WhatsApp%20Image%202020-06-05%20at%2013_50_58.jpeg',
+  'sardes antik kenti': 'https://www.arkeogezgin.com/wp-content/uploads/2018/08/10-gymnasium-3.jpg',
+  'silahtar mustafa paşa kervansarayı': 'https://www.kulturportali.gov.tr/contents/images/20160304131218291_DSC00256.JPG',
+  'taşhan ve taşmedrese': 'https://image.hurimg.com/i/hurriyet/90/770x0/5d7f4b8f67b0a92fd873094d.jpg',
+  'tripolis antik kenti': 'https://buldan.bel.tr/wp-content/uploads/2021/06/Buldan-tripolis.jpg',
+  'uchisar kalesi': 'https://toursce.com/destinations/wp-content/uploads/2018/07/Uchisar-Castle-Cappadocia-5.jpg',
+  'vezirköprü şahinkaya kanyonu': 'https://upload.wikimedia.org/wikipedia/commons/thumb/f/f9/Sahinkaya_Canyon.jpg/960px-Sahinkaya_Canyon.jpg',
+  'zağ mağaraları': 'https://bingol.bel.tr/storage/media/2021/09/09/2576/c/zag-magaralari-1-big.jpg',
+  'zelve acik hava muzesi': 'https://cdn-imgix.headout.com/media/images/a9c3bb1a-0ebb-4387-b8b1-11cf23aa73fc-1757488534271-310387.jpg',
 }
 
-const normalizePlaceName = (value = '') => value.toLocaleLowerCase('tr-TR').trim()
+const PLACE_IMAGE_OVERRIDES = {
+  'perre antik kenti': 'https://trthaberstatic.cdn.wp.trt.com.tr/resimler/2326000/2326159.jpg',
+}
+
+const normalizePlaceName = (value = '') =>
+  String(value).normalize('NFC').toLocaleLowerCase('tr-TR').trim().replace(/\s+/g, ' ')
+
+const getPlaceImage = (place, failedSources = {}) => {
+  const key = normalizePlaceName(place?.name)
+  const overrideImage = PLACE_IMAGE_OVERRIDES[key]
+  const dbImage = Array.isArray(place?.images) ? place.images.find(Boolean) : ''
+  const fallbackImage = PLACE_FALLBACK_IMAGES[key]
+
+  if (overrideImage && !failedSources.override) {
+    return { src: overrideImage, source: 'override', key }
+  }
+
+  if (dbImage && !failedSources.db) {
+    return { src: dbImage, source: 'db', key }
+  }
+
+  if (fallbackImage && !failedSources.fallback) {
+    return { src: fallbackImage, source: 'fallback', key }
+  }
+
+  if (!failedSources.generic) {
+    return { src: genericPlaceImage, source: 'generic', key }
+  }
+
+  return { src: '', source: 'generic', key }
+}
 
 export default function PlacePage() {
   const { id } = useParams()
@@ -44,7 +106,7 @@ export default function PlacePage() {
   const [loading, setLoading] = useState(true)
   const [saved, setSaved] = useState(false)
   const [panoramaOpen, setPanoramaOpen] = useState(false)
-  const [imageFailed, setImageFailed] = useState(false)
+  const [failedImageSources, setFailedImageSources] = useState({})
   const [reviewForm, setReviewForm] = useState({ rating: 5, comment: '' })
   const [submitting, setSubmitting] = useState(false)
 
@@ -61,7 +123,7 @@ export default function PlacePage() {
   }, [id, user])
 
   useEffect(() => {
-    setImageFailed(false)
+    setFailedImageSources({})
   }, [id])
 
   const handleSave = async () => {
@@ -117,9 +179,7 @@ export default function PlacePage() {
   const displayPlace = translatePlace(place)
   const has360 = has360Imagery(place)
   const isInRoute = routePlaces.some(p => p._id === place._id)
-  const dbImage = Array.isArray(place.images) ? place.images.find(Boolean) : ''
-  const fallbackImage = PLACE_FALLBACK_IMAGES[normalizePlaceName(place.name)]
-  const heroImage = !imageFailed ? (dbImage || fallbackImage || '') : ''
+  const heroImage = getPlaceImage(place, failedImageSources)
   const handleBack = () => {
     const returnMapState = location.state?.returnMapState
 
@@ -139,10 +199,15 @@ export default function PlacePage() {
 
       {/* Hero image */}
       <div className="h-64 md:h-80 bg-gradient-to-br from-stone-800 to-stone-900 rounded-2xl flex items-center justify-center mb-6 relative overflow-hidden">
-        {heroImage ? (
+        {heroImage.src ? (
           <>
-            <img src={heroImage} alt="" className="pointer-events-none absolute inset-0 h-full w-full scale-110 object-cover opacity-25 blur-xl" aria-hidden="true" />
-            <img src={heroImage} alt={displayPlace.displayName} className="pointer-events-none relative z-10 max-h-full max-w-full object-contain" onError={() => setImageFailed(true)} />
+            <img src={heroImage.src} alt="" className="pointer-events-none absolute inset-0 h-full w-full scale-110 object-cover opacity-25 blur-xl" aria-hidden="true" />
+            <img
+              src={heroImage.src}
+              alt={displayPlace.displayName}
+              className="pointer-events-none relative z-10 max-h-full max-w-full object-contain"
+              onError={() => setFailedImageSources(prev => ({ ...prev, [heroImage.source]: true }))}
+            />
           </>
         ) : (
           <div className="flex flex-col items-center gap-3 text-stone-600">
