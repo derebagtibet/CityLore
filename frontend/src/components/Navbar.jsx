@@ -58,16 +58,14 @@ export default function Navbar() {
             {isConnected ? t('nav.connected') : t('nav.disconnected')}
           </div>
 
-          {user && (
+          {user?.role === 'admin' && (
             <>
               <Link to="/add-place" className="rounded-lg border border-gold/25 px-3 py-2 text-sm text-gold-bright/80 transition hover:border-gold/60">
                 <Plus size={15} />
               </Link>
-              {user.role === 'admin' && (
-                <Link to="/admin" className="rounded-lg border border-gold/25 px-3 py-2 text-sm text-gold-bright/80 transition hover:border-gold/60">
-                  <Shield size={15} />
-                </Link>
-              )}
+              <Link to="/admin" className="rounded-lg border border-gold/25 px-3 py-2 text-sm text-gold-bright/80 transition hover:border-gold/60">
+                <Shield size={15} />
+              </Link>
             </>
           )}
 
@@ -113,7 +111,7 @@ export default function Navbar() {
           >
             <MapGlyph className="h-5 w-5" /> {t('nav.map')}
           </button>
-          {user && <Link to="/add-place" onClick={() => setMenuOpen(false)} className="flex items-center gap-2 rounded-lg px-3 py-2.5 text-gold-bright hover:bg-gold/10"><Plus size={16} /> {t('nav.addPlace')}</Link>}
+          {user?.role === 'admin' && <Link to="/add-place" onClick={() => setMenuOpen(false)} className="flex items-center gap-2 rounded-lg px-3 py-2.5 text-gold-bright hover:bg-gold/10"><Plus size={16} /> {t('nav.addPlace')}</Link>}
           {user?.role === 'admin' && <Link to="/admin" onClick={() => setMenuOpen(false)} className="flex items-center gap-2 rounded-lg px-3 py-2.5 text-gold-bright hover:bg-gold/10"><Shield size={16} /> {t('common.admin')}</Link>}
           {user ? (
             <>

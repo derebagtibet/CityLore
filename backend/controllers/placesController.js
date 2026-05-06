@@ -176,8 +176,9 @@ const getPlace = async (req, res) => {
     if (!place) return res.status(404).json({ message: 'Place not found' });
     const isOwner = place.addedBy?._id?.toString() === req.user?._id?.toString();
     const isAdmin = req.user?.role === 'admin';
-    const isLegacyAdminPlace = place.addedBy?.role === 'admin' && !place.visibility;
-    const isPublic = place.visibility === 'public' || isLegacyAdminPlace || !place.addedBy;
+    const isAdminAddedPlace = place.addedBy?.role === 'admin';
+    const isLegacyAdminPlace = isAdminAddedPlace && !place.visibility;
+    const isPublic = place.visibility === 'public' || isLegacyAdminPlace || isAdminAddedPlace || !place.addedBy;
     if (!isPublic && !isOwner && !isAdmin) return res.status(404).json({ message: 'Place not found' });
     await attachResolvedImage(place);
     res.json(place);

@@ -22,6 +22,7 @@ export default function AddPlacePage() {
   const [loading, setLoading] = useState(false)
 
   if (!user) { navigate('/login'); return null }
+  if (user.role !== 'admin') { navigate('/map'); return null }
 
   const handleSubmit = async (e) => {
     e.preventDefault()
