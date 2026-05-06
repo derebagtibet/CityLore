@@ -19,6 +19,49 @@ const numberFromQuery = (value) => {
   return Number.isFinite(number) ? number : null;
 };
 
+const parseCoordinate = (value) => {
+  if (value === undefined || value === null || value === '') return null;
+  const number = Number(value);
+  return Number.isFinite(number) ? number : null;
+};
+
+const getCoordinatesFromBody = (body) => {
+  const lat = parseCoordinate(body.lat ?? body.latitude ?? body.location?.coordinates?.[1]);
+  const lng = parseCoordinate(body.lng ?? body.longitude ?? body.location?.coordinates?.[0]);
+
+  if (lat === null || lng === null) {
+    return { error: 'Latitude and longitude are required' };
+  }
+
+  if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+    return { error: 'Invalid latitude or longitude range' };
+  }
+
+  return { lat, lng, coordinates: [lng, lat] };
+};
+
+const escapeRegex = (value) => String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+
+const updateCityPlaceCount = async (city, coordinates, increment) => {
+  const cityName = String(city || '').trim();
+  if (!cityName) return;
+
+  const existingCity = await City.findOneAndUpdate(
+    { name: { $regex: `^${escapeRegex(cityName)}$`, $options: 'i' } },
+    { $inc: { placeCount: increment } },
+    { new: true }
+  );
+
+  if (!existingCity && increment > 0 && coordinates) {
+    await City.create({
+      name: cityName,
+      location: { type: 'Point', coordinates },
+      description: `${cityName} cultural places`,
+      placeCount: 1,
+    });
+  }
+};
+
 const attachResolvedImage = async (place) => {
   if (!place || !Array.isArray(place.images)) return place;
 
@@ -149,10 +192,8 @@ const createPlace = async (req, res) => {
     const {
       name,
       description,
-      category,
+      category = 'cultural',
       city,
-      lat,
-      lng,
       address,
       period,
       entryFee,
@@ -167,6 +208,11 @@ const createPlace = async (req, res) => {
       streetView,
       visibility,
     } = req.body;
+    const coordinateResult = getCoordinatesFromBody(req.body);
+    if (coordinateResult.error) return res.status(400).json({ message: coordinateResult.error });
+    const cityName = String(city || '').trim();
+    if (!cityName) return res.status(400).json({ message: 'City is required' });
+
     const placeVisibility = req.user.role === 'admin'
       ? (visibility === 'private' ? 'private' : 'public')
       : 'private';
@@ -174,9 +220,9 @@ const createPlace = async (req, res) => {
     const place = await Place.create({
       name,
       description,
-      category,
-      city,
-      location: { type: 'Point', coordinates: [parseFloat(lng), parseFloat(lat)] },
+      category: category || 'cultural',
+      city: cityName,
+      location: { type: 'Point', coordinates: coordinateResult.coordinates },
       address,
       period,
       entryFee,
@@ -201,7 +247,7 @@ const createPlace = async (req, res) => {
     });
 
     if (placeVisibility === 'public') {
-      await City.findOneAndUpdate({ name: { $regex: city, $options: 'i' } }, { $inc: { placeCount: 1 } });
+      await updateCityPlaceCount(cityName, coordinateResult.coordinates, 1);
     }
 
     res.status(201).json(place);
@@ -220,12 +266,22 @@ const updatePlace = async (req, res) => {
     const isAdmin = req.user.role === 'admin';
     if (!isOwner && !isAdmin) return res.status(403).json({ message: 'Not authorized' });
 
-    const { lat, lng, visibility, ...rest } = req.body;
+    const { lat, lng, latitude, longitude, location, visibility, ...rest } = req.body;
     Object.assign(place, rest);
     if (req.user.role === 'admin' && ['public', 'private'].includes(visibility)) {
       place.visibility = visibility;
     }
-    if (lat && lng) place.location = { type: 'Point', coordinates: [parseFloat(lng), parseFloat(lat)] };
+    if (
+      lat !== undefined ||
+      lng !== undefined ||
+      latitude !== undefined ||
+      longitude !== undefined ||
+      location?.coordinates
+    ) {
+      const coordinateResult = getCoordinatesFromBody(req.body);
+      if (coordinateResult.error) return res.status(400).json({ message: coordinateResult.error });
+      place.location = { type: 'Point', coordinates: coordinateResult.coordinates };
+    }
 
     const updated = await place.save();
     res.json(updated);
@@ -244,9 +300,7 @@ const deletePlace = async (req, res) => {
     const isAdmin = req.user.role === 'admin';
     if (!isOwner && !isAdmin) return res.status(403).json({ message: 'Not authorized' });
 
-    if (place.visibility === 'public') {
-      await City.findOneAndUpdate({ name: { $regex: place.city, $options: 'i' } }, { $inc: { placeCount: -1 } });
-    }
+    if (place.visibility === 'public') await updateCityPlaceCount(place.city, null, -1);
     await place.deleteOne();
     res.json({ message: 'Place deleted' });
   } catch (err) {
