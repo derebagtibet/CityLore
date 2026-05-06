@@ -6,7 +6,7 @@ import { useSocket } from '../context/SocketContext'
 import { useAuth } from '../context/AuthContext'
 import { useRoute } from '../context/RouteContext'
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom'
-import { Search, Filter, Zap, MapPin, Star, X, Plus, Clock, Navigation, Trash2, Car, Footprints, Cloud, Sun, CloudRain, CloudLightning, CloudSnow, Wind, Compass } from 'lucide-react'
+import { Search, Filter, Zap, MapPin, Star, X, Plus, Clock, Navigation, Trash2, Car, Footprints, Cloud, Sun, CloudRain, CloudLightning, CloudSnow, Wind, Compass, PanelLeftClose, PanelLeftOpen } from 'lucide-react'
 import EventForm from '../components/EventForm'
 import PanoramaModal from '../components/PanoramaModal'
 import { has360Imagery } from '../utils/place360'
@@ -80,6 +80,17 @@ function MapBoundsTracker({ onViewportChange }) {
   useEffect(() => {
     onViewportChange(getMapBoundsPayload(map), map.getZoom(), map.getCenter())
   }, [map, onViewportChange])
+
+  return null
+}
+
+function MapLayoutSync({ sidebarOpen }) {
+  const map = useMap()
+
+  useEffect(() => {
+    const timeoutId = window.setTimeout(() => map.invalidateSize(), 260)
+    return () => window.clearTimeout(timeoutId)
+  }, [map, sidebarOpen])
 
   return null
 }
@@ -334,6 +345,7 @@ export default function MapPage() {
   const [walkingPolyline, setWalkingPolyline] = useState([])
   const [weather, setWeather] = useState(null)
   const [showPredefined, setShowPredefined] = useState(false)
+  const [sidebarOpen, setSidebarOpen] = useState(true)
   const [viewportBounds, setViewportBounds] = useState(null)
   const debouncedSearchTerm = useDebouncedValue(searchTerm.trim(), 300)
   const debouncedViewportBounds = useDebouncedValue(viewportBounds, 180)
@@ -678,9 +690,24 @@ export default function MapPage() {
   }
 
   return (
-    <div className="h-[calc(100vh-72px)] flex">
+    <div className="relative h-[calc(100vh-72px)] flex overflow-hidden">
       {/* Sidebar */}
-      <div className="w-80 shrink-0 bg-white dark:bg-stone-900 border-r border-stone-200 dark:border-stone-800 flex flex-col overflow-y-auto overflow-x-hidden transition-colors duration-300">
+      <div
+        className={`absolute inset-y-0 left-0 z-[1100] flex w-[min(20rem,calc(100vw-4.75rem))] shrink-0 flex-col overflow-y-auto overflow-x-hidden border-r border-stone-200 bg-white shadow-2xl transition-all duration-300 ease-out dark:border-stone-800 dark:bg-stone-900 lg:relative lg:z-auto lg:shadow-none ${
+          sidebarOpen ? 'translate-x-0 lg:w-80' : '-translate-x-full lg:w-0 lg:translate-x-0 lg:border-r-0'
+        }`}
+      >
+        <div className="flex items-center justify-end border-b border-stone-200 p-2 dark:border-stone-800">
+          <button
+            type="button"
+            onClick={() => setSidebarOpen(false)}
+            className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-amber-500/30 bg-stone-950 text-amber-400 shadow-sm transition-colors hover:bg-amber-500 hover:text-stone-950 focus:outline-none focus:ring-2 focus:ring-amber-400/70"
+            title={language === 'tr' ? 'Paneli kapat' : 'Close panel'}
+            aria-label={language === 'tr' ? 'Paneli kapat' : 'Close panel'}
+          >
+            <PanelLeftClose size={18} />
+          </button>
+        </div>
         {/* Search */}
         <div className="p-3 border-b border-stone-200 dark:border-stone-800">
           <div className="relative">
@@ -919,6 +946,17 @@ export default function MapPage() {
 
       {/* Map */}
       <div className="flex-1 relative">
+        {!sidebarOpen && (
+          <button
+            type="button"
+            onClick={() => setSidebarOpen(true)}
+            className="absolute left-4 top-4 z-[1000] inline-flex h-11 w-11 items-center justify-center rounded-xl border border-amber-500/40 bg-stone-950/95 text-amber-400 shadow-2xl backdrop-blur transition-colors hover:bg-amber-500 hover:text-stone-950 focus:outline-none focus:ring-2 focus:ring-amber-400/70"
+            title={language === 'tr' ? 'Paneli aç' : 'Open panel'}
+            aria-label={language === 'tr' ? 'Paneli aç' : 'Open panel'}
+          >
+            <PanelLeftOpen size={20} />
+          </button>
+        )}
         <MapContainer
           center={mapCenter}
           zoom={mapZoom}
@@ -932,6 +970,7 @@ export default function MapPage() {
           />
           <MapController center={mapCenter} zoom={mapZoom} />
           <MapBoundsTracker onViewportChange={handleViewportChange} />
+          <MapLayoutSync sidebarOpen={sidebarOpen} />
 
           {/* Sürüş Rotası (Sarı - Alt katman) */}
           <Pane name="driving-route-pane" style={{ zIndex: 430, pointerEvents: 'none' }}>
