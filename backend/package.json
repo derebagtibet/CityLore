@@ -13,7 +13,8 @@
     "fetch:ege": "node fetchEgePlaces.js",
     "fetch:marmara": "node fetchMarmaraPlaces.js",
     "repair:images": "node scripts/repairPlaceImages.js",
-    "bulk-fill:images": "node scripts/bulkFillPlaceImages.js"
+    "bulk-fill:images": "node scripts/bulkFillPlaceImages.js",
+    "import:seed-images": "node scripts/importSeedImages.js"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
