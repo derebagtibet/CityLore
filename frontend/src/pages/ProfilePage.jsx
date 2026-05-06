@@ -9,6 +9,8 @@ import explorerGuide from '../assets/animations/explorer-guide.json'
 import { useLanguage } from '../i18n/LanguageContext'
 import DiscoveryPuzzle, { DISCOVERIES_PER_LEVEL, getDiscoveryLevelTitleKey, getDiscoveryProgress } from '../components/DiscoveryPuzzle'
 
+const PROFILE_PLACE_LIST_LIMIT = 1000
+
 export default function ProfilePage() {
   const { user, logout } = useAuth()
   const { t, translatePlace } = useLanguage()
@@ -17,17 +19,20 @@ export default function ProfilePage() {
   const [editing, setEditing] = useState(false)
   const [form, setForm] = useState({ username: '', bio: '' })
   const [myPlaces, setMyPlaces] = useState([])
+  const [myPlacesTotal, setMyPlacesTotal] = useState(0)
   const [loading, setLoading] = useState(false)
 
   useEffect(() => {
     if (!user) { navigate('/login'); return }
     Promise.all([
       authAPI.getMe(),
-      placesAPI.getAll({ mine: true, limit: 100 }),
+      placesAPI.getAll({ mine: true, limit: PROFILE_PLACE_LIST_LIMIT }),
     ]).then(([profileRes, placesRes]) => {
+      const fetchedMyPlaces = placesRes.data.places || []
       setProfile(profileRes.data)
       setForm({ username: profileRes.data.username, bio: profileRes.data.bio || '' })
-      setMyPlaces(placesRes.data.places || [])
+      setMyPlaces(fetchedMyPlaces)
+      setMyPlacesTotal(placesRes.data.total ?? fetchedMyPlaces.length)
     })
   }, [user])
 
@@ -52,7 +57,7 @@ export default function ProfilePage() {
   const savedPlaces = profile.savedPlaces || []
   const savedCount = savedPlaces.length
   const isAdmin = profile.role === 'admin'
-  const myPlacesCount = myPlaces.length
+  const myPlacesCount = myPlacesTotal
   const {
     completedLevels,
     currentLevel,
