@@ -161,6 +161,7 @@ const NAME_PHRASE_VARIANTS = [
 const ASCII_TURKISH_PHRASES = [
   ['dolmabahce', 'Dolmabahçe'],
   ['besiktas', 'Beşiktaş'],
+  ['bandirma', 'Bandırma'],
   ['istanbul', 'İstanbul'],
   ['sarayi', 'Sarayı'],
   ['turbesi', 'Türbesi'],
@@ -199,8 +200,8 @@ const knownImageTitles = {
   ayasofya: 'Hagia Sophia',
   'blue mosque': 'Sultan Ahmed Mosque',
   'bodrum kalesi': 'Bodrum Kalesi',
-  'bandirma gemi muzesi': 'Bandirma Vapuru',
-  'bandirma vapuru': 'Bandirma Vapuru',
+  'bandirma gemi muzesi': 'Bandırma Vapuru',
+  'bandirma vapuru': 'Bandırma Vapuru',
   'cifte minareli medrese': 'Cifte Minareli Medrese Erzurum',
   'deyrulzafaran manastiri': 'Deyrulzaferan Manastiri',
   'deyrulzaferan manastiri': 'Deyrulzaferan Manastiri',
@@ -382,6 +383,12 @@ const getNameVariants = (name = '') => {
     addUnique(variants, 'SEKA Kâğıt Müzesi');
     addUnique(variants, 'SEKA Paper Museum');
     addUnique(variants, 'seka paper museum');
+  }
+
+  if (key.includes('bandirma') && key.includes('gemi')) {
+    addUnique(variants, 'Bandırma Vapuru');
+    addUnique(variants, 'Bandırma Vapuru Müzesi');
+    addUnique(variants, 'Bandirma Ship and War of Independence Museum');
   }
 
   return variants;
