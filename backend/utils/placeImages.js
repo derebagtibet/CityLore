@@ -2,6 +2,8 @@ const imageCache = new Map();
 const resolvedImageContextCache = new Map();
 
 const IMAGE_TIMEOUT_MS = 8000;
+const IMAGE_FETCH_RETRIES = 2;
+const IMAGE_RETRY_DELAY_MS = 1200;
 const WIKIPEDIA_LANGUAGES = ['tr', 'en'];
 const MAX_SEARCH_RESULTS = 6;
 const MAX_ARTICLE_IMAGES = 50;
@@ -19,6 +21,7 @@ const BAD_IMAGE_WORDS = [
   'floor_plan',
   'icon',
   'layout',
+  'location',
   'logo',
   'map',
   'non_political',
@@ -244,6 +247,13 @@ const normalizeText = value => String(value || '')
   .trim()
   .replace(/\s+/g, ' ');
 
+const delay = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+const getConfiguredNumber = (name, fallback) => {
+  const value = Number(process.env[name]);
+  return Number.isFinite(value) && value >= 0 ? value : fallback;
+};
+
 const decodeSafe = (value = '') => {
   try {
     return decodeURIComponent(value);
@@ -327,8 +337,10 @@ const getNameVariants = (name = '') => {
   const baseName = String(name || '').trim();
   const noParentheses = withoutParentheses(baseName);
   const normalized = normalizeText(baseName);
+  const knownTitle = knownImageTitles[normalized];
 
   addUnique(variants, baseName);
+  addUnique(variants, knownTitle);
   addUnique(variants, noParentheses);
   addUnique(variants, normalized);
   addUnique(variants, restoreTurkishPhrases(normalized));
@@ -523,6 +535,11 @@ const getCommonsFallbackQueries = (queries) => queries
   .filter(query => normalizeText(query).split(' ').length <= 4)
   .slice(0, MAX_COMMONS_FALLBACK_QUERIES);
 
+const limitList = (values, limit) => {
+  if (!Number.isFinite(limit) || limit <= 0) return values;
+  return values.slice(0, limit);
+};
+
 const getCandidateConfidence = ({ title = '', imageUrl = '', query = '', place }) => {
   if (imageUrl && !isUsablePlaceImage(imageUrl)) return { score: -100, tokenHits: 0 };
 
@@ -638,9 +655,11 @@ const shouldReplacePlaceImage = (place, currentImage, nextImage) => {
   return nextReliable && nextScore >= currentScore + REPLACEMENT_MARGIN;
 };
 
-const fetchJson = async (url) => {
+const fetchJson = async (url, attempt = 0) => {
   const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), IMAGE_TIMEOUT_MS);
+  const imageTimeoutMs = getConfiguredNumber('CITYLORE_IMAGE_TIMEOUT_MS', IMAGE_TIMEOUT_MS);
+  const imageFetchRetries = getConfiguredNumber('CITYLORE_IMAGE_RETRIES', IMAGE_FETCH_RETRIES);
+  const timeout = setTimeout(() => controller.abort(), imageTimeoutMs);
 
   try {
     const response = await fetch(url, {
@@ -651,9 +670,23 @@ const fetchJson = async (url) => {
       signal: controller.signal,
     });
 
-    if (!response.ok) return null;
+    if (!response.ok) {
+      if ((response.status === 429 || response.status >= 500) && attempt < imageFetchRetries) {
+        const retryAfter = Number(response.headers?.get?.('retry-after'));
+        const waitMs = Number.isFinite(retryAfter) && retryAfter > 0
+          ? retryAfter * 1000
+          : IMAGE_RETRY_DELAY_MS * (attempt + 1);
+        await delay(waitMs);
+        return fetchJson(url, attempt + 1);
+      }
+      return null;
+    }
     return response.json();
   } catch (err) {
+    if (attempt < imageFetchRetries) {
+      await delay(IMAGE_RETRY_DELAY_MS * (attempt + 1));
+      return fetchJson(url, attempt + 1);
+    }
     return null;
   } finally {
     clearTimeout(timeout);
@@ -938,8 +971,9 @@ const resolvePlaceImage = async (place, options = {}) => {
   const cacheKey = `${name}|${city}|${address}|${options.ignoreExisting ? 'refresh' : 'normal'}`;
   if (imageCache.has(cacheKey)) return imageCache.get(cacheKey);
 
-  const titleCandidates = buildWikipediaTitleCandidates(place);
-  const queries = buildPlaceImageQueries(place);
+  const titleCandidates = limitList(buildWikipediaTitleCandidates(place), options.maxTitleCandidates);
+  const queries = limitList(buildPlaceImageQueries(place), options.maxQueries);
+  const commonsQueries = limitList(getCommonsFallbackQueries(queries), options.maxCommonsQueries);
   let imageUrl = '';
   let resolvedContext = null;
   const searchCandidates = [];
@@ -959,7 +993,7 @@ const resolvePlaceImage = async (place, options = {}) => {
         break;
       }
     }
-    if (!imageUrl) {
+    if (!imageUrl && !options.skipArticleImages) {
       const articleCandidates = [];
       for (const language of WIKIPEDIA_LANGUAGES) {
         articleCandidates.push(...await fetchWikipediaArticleImageCandidates(language, title, place));
@@ -973,6 +1007,11 @@ const resolvePlaceImage = async (place, options = {}) => {
       }
     }
     if (imageUrl) break;
+  }
+
+  if (!imageUrl && options.exactOnly) {
+    imageCache.set(cacheKey, '');
+    return '';
   }
 
   if (!imageUrl) {
@@ -1013,14 +1052,14 @@ const resolvePlaceImage = async (place, options = {}) => {
   }
 
   if (!imageUrl) {
-    for (const query of getCommonsFallbackQueries(queries)) {
+    for (const query of commonsQueries) {
       imageUrl = await fetchCommonsPrefixImage(query, place);
       if (imageUrl) break;
     }
   }
 
   if (!imageUrl) {
-    for (const query of getCommonsFallbackQueries(queries)) {
+    for (const query of commonsQueries) {
       imageUrl = await fetchCommonsCategoryImage(query, place);
       if (imageUrl) {
         break;
@@ -1029,7 +1068,7 @@ const resolvePlaceImage = async (place, options = {}) => {
   }
 
   if (!imageUrl) {
-    for (const query of getCommonsFallbackQueries(queries)) {
+    for (const query of commonsQueries) {
       imageUrl = await fetchCommonsSearchImage(query, place);
       if (imageUrl) {
         break;
@@ -1061,6 +1100,7 @@ module.exports = {
   isUsablePlaceImage,
   isExistingImageReliable,
   shouldReplacePlaceImage,
+  isCandidateReliable,
   buildPlaceImageQueries,
   buildWikipediaTitleCandidates,
   scoreCandidate,

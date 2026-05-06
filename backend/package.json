@@ -12,7 +12,8 @@
     "fetch:guneydogu": "node fetchGuneydoguAnadoluPlaces.js",
     "fetch:ege": "node fetchEgePlaces.js",
     "fetch:marmara": "node fetchMarmaraPlaces.js",
-    "repair:images": "node scripts/repairPlaceImages.js"
+    "repair:images": "node scripts/repairPlaceImages.js",
+    "bulk-fill:images": "node scripts/bulkFillPlaceImages.js"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",

@@ -14,9 +14,29 @@ const {
 const applyChanges = process.argv.includes('--apply');
 const limitArg = process.argv.find(arg => arg.startsWith('--limit='));
 const cityArg = process.argv.find(arg => arg.startsWith('--city='));
+const delayArg = process.argv.find(arg => arg.startsWith('--delay='));
+const exhaustive = process.argv.includes('--exhaustive');
+const searchFallbacks = process.argv.includes('--search');
+const articleFallbacks = process.argv.includes('--article');
+const clearSuspicious = process.argv.includes('--clear-suspicious');
 const limit = limitArg ? Number(limitArg.split('=')[1]) : 0;
 const city = cityArg ? cityArg.slice('--city='.length).trim() : '';
-const REQUEST_DELAY_MS = 750;
+const REQUEST_DELAY_MS = delayArg ? Number(delayArg.split('=')[1]) : 1500;
+const resolverOptions = exhaustive
+  ? { ignoreExisting: true }
+  : {
+      ignoreExisting: true,
+      exactOnly: !searchFallbacks,
+      skipArticleImages: !articleFallbacks,
+      maxTitleCandidates: 2,
+      maxQueries: searchFallbacks ? 8 : 0,
+      maxCommonsQueries: searchFallbacks ? 2 : 0,
+    };
+
+if (!exhaustive) {
+  process.env.CITYLORE_IMAGE_TIMEOUT_MS = process.env.CITYLORE_IMAGE_TIMEOUT_MS || '2000';
+  process.env.CITYLORE_IMAGE_RETRIES = process.env.CITYLORE_IMAGE_RETRIES || '0';
+}
 
 const formatScore = (place, imageUrl) => scoreCandidate({ imageUrl, place });
 const countBy = (map, key) => map.set(key, (map.get(key) || 0) + 1);
@@ -35,7 +55,7 @@ const analyzePlace = async (place) => {
   }
 
   clearImageCache();
-  const nextImage = await resolvePlaceImage(place, { ignoreExisting: true });
+  const nextImage = await resolvePlaceImage(place, resolverOptions);
   const shouldUpdate = currentImage
     ? shouldReplacePlaceImage(place, currentImage, nextImage)
     : isResolvedCandidate(place, nextImage);
@@ -43,7 +63,7 @@ const analyzePlace = async (place) => {
   if (!shouldUpdate) {
     if (currentImage) {
       return {
-        status: 'suspicious-clear',
+        status: clearSuspicious ? 'suspicious-clear' : 'suspicious-unresolved',
         currentImage,
         nextImage,
         oldScore: formatScore(place, currentImage),
@@ -94,7 +114,9 @@ const main = async () => {
 
   for (const place of places) {
     const result = await analyzePlace(place);
-    await delay(REQUEST_DELAY_MS);
+    if (Number.isFinite(REQUEST_DELAY_MS) && REQUEST_DELAY_MS > 0) {
+      await delay(REQUEST_DELAY_MS);
+    }
 
     if (result.status === 'reliable') {
       stats.reliable++;
