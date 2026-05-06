@@ -28,6 +28,7 @@ const PLACE_FALLBACK_IMAGES = {
   'karakale harabesi': 'https://upload.wikimedia.org/wikipedia/commons/f/ff/%C5%9Eeytan_Kale_-_Satan%27s_Castle.jpg',
   'iğdır soykırım anıt-müzesi': 'https://upload.wikimedia.org/wikipedia/commons/5/56/IgdirGenocideMuseum.jpg',
   'igdir soykirim anit-muzesi': 'https://upload.wikimedia.org/wikipedia/commons/5/56/IgdirGenocideMuseum.jpg',
+  'malabadi köprüsü': 'https://commons.wikimedia.org/wiki/Special:FilePath/Malabadi%20Bridge.jpg',
 }
 
 const normalizePlaceName = (value = '') => value.toLocaleLowerCase('tr-TR').trim()
