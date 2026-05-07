@@ -1,5 +1,9 @@
 # CityLore
 
+<p align="center">
+  <img src="landing%20page.png" alt="CityLore landing page" width="100%">
+</p>
+
 CityLore is a full-stack cultural discovery platform for Turkiye. It helps users explore historical and cultural places on an interactive map, plan routes, follow cultural events, save places, write reviews, and use optional AI and street-level viewing features.
 
 ## Overview
