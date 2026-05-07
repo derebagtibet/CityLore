@@ -257,3 +257,30 @@ These are recommended deployment options, not live deployment links.
 - OpenRouter is optional unless the chatbot is needed.
 - OpenRouteService is optional because the directions endpoint can fall back to OSRM.
 - Google Maps Embed Street View is optional and used only inside the street-level viewing modal when configured.
+
+## Application Screenshots
+
+The project screenshots are stored in [`docs/screenshots`](docs/screenshots).
+
+<details>
+  <summary>View application screenshots</summary>
+  <br>
+
+  <p align="center">
+    <img src="docs/screenshots/screenshot-01.png" alt="CityLore application screenshot 01" width="49%">
+    <img src="docs/screenshots/screenshot-02.png" alt="CityLore application screenshot 02" width="49%">
+    <img src="docs/screenshots/screenshot-03.png" alt="CityLore application screenshot 03" width="49%">
+    <img src="docs/screenshots/screenshot-04.png" alt="CityLore application screenshot 04" width="49%">
+    <img src="docs/screenshots/screenshot-05.png" alt="CityLore application screenshot 05" width="49%">
+    <img src="docs/screenshots/screenshot-06.png" alt="CityLore application screenshot 06" width="49%">
+    <img src="docs/screenshots/screenshot-07.png" alt="CityLore application screenshot 07" width="49%">
+    <img src="docs/screenshots/screenshot-08.png" alt="CityLore application screenshot 08" width="49%">
+    <img src="docs/screenshots/screenshot-09.png" alt="CityLore application screenshot 09" width="49%">
+    <img src="docs/screenshots/screenshot-10.png" alt="CityLore application screenshot 10" width="49%">
+    <img src="docs/screenshots/screenshot-11.png" alt="CityLore application screenshot 11" width="49%">
+    <img src="docs/screenshots/screenshot-12.png" alt="CityLore application screenshot 12" width="49%">
+    <img src="docs/screenshots/screenshot-13.png" alt="CityLore application screenshot 13" width="49%">
+    <img src="docs/screenshots/screenshot-14.png" alt="CityLore application screenshot 14" width="49%">
+    <img src="docs/screenshots/screenshot-15.png" alt="CityLore application screenshot 15" width="49%">
+  </p>
+</details>
