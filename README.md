@@ -4,6 +4,11 @@
   <img src="landing%20page.png" alt="CityLore landing page" width="100%">
 </p>
 
+## Live Links
+
+- **Frontend**: https://interactive-map-platform-one.vercel.app
+- **Backend API**: https://citylore-backend.onrender.com
+
 CityLore is a full-stack cultural discovery platform for Turkiye. It helps users explore historical and cultural places on an interactive map, plan routes, follow cultural events, save places, write reviews, and use optional AI and street-level viewing features.
 
 ## Overview
